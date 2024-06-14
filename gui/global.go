@@ -8,3 +8,4 @@ import (
 
 var BaseGui *gocui.Gui = nil
 var cmdConfig config.Config
+var cursor_len = 0;

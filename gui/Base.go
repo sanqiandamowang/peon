@@ -6,9 +6,7 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-
-
-func Dis_base() {
+func DisBase() {
 	var err error
 	BaseGui, err = gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
@@ -51,7 +49,6 @@ func layout(g *gocui.Gui) error {
 	return nil
 }
 
-
 func keybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
 		return err
@@ -72,10 +69,12 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 func cursorDown(g *gocui.Gui, v *gocui.View) error {
 	if v != nil {
 		cx, cy := v.Cursor()
-		if err := v.SetCursor(cx, cy+1); err != nil {
-			ox, oy := v.Origin()
-			if err := v.SetOrigin(ox, oy+1); err != nil {
-				return err
+		if cy < cursor_len {
+			if err := v.SetCursor(cx, cy+1); err != nil {
+				ox, oy := v.Origin()
+				if err := v.SetOrigin(ox, oy+1); err != nil {
+					return err
+				}
 			}
 		}
 	}

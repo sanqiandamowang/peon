@@ -40,6 +40,8 @@ func disMainpage() error {
 		v.Title = "cmd"
 		v.Wrap = true
 		fmt.Fprintln(v, "Edit JSON")
+		cursor_len = len(cmdConfig.Plugins)
+		
 		for _,value := range cmdConfig.Plugins {
 			fmt.Fprintln(v, value.Name+" :  "+value.Cmd)
 		}
