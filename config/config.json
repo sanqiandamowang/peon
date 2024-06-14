@@ -1,0 +1,15 @@
+{
+    "version": "0.0.1",
+    "configDir":"testValue",
+    "plugins":[
+        {
+            "name":"plugin1",
+            "cmd":"ls"
+        },
+        {
+            "name":"plugin2",
+            "cmd":"clear"
+        }
+    ]
+
+}
