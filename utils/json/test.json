@@ -1,5 +1,73 @@
 {
-    "name": "John",
+    "name": "John Doe",
     "age": 30,
-    "city": "New York"
-}
+    "isEmployed": true,
+    "address": {
+      "street": "1234 Elm Street",
+      "city": "Somewhere",
+      "postalCode": "12345"
+    },
+    "phones": [
+      {
+        "type": "home",
+        "number": "555-1234"
+      },
+      {
+        "type": "work",
+        "number": "555-5678"
+      }
+    ],
+    "hobbies": [
+      "reading",
+      "travelling",
+      "swimming"
+    ],
+    "education": {
+      "highSchool": {
+        "name": "Some High School",
+        "yearGraduated": 2010
+      },
+      "university": {
+        "name": "Some University",
+        "yearGraduated": 2014,
+        "degree": "Bachelor of Science",
+        "majors": [
+          "Computer Science",
+          "Mathematics"
+        ]
+      }
+    },
+    "workExperience": [
+      {
+        "company": "Company A",
+        "position": "Software Engineer",
+        "years": 3
+      },
+      {
+        "company": "Company B",
+        "position": "Senior Software Engineer",
+        "years": 2
+      }
+    ],
+    "projects": [
+      {
+        "name": "Project X",
+        "description": "A complex project",
+        "technologies": [
+          "Go",
+          "Docker",
+          "Kubernetes"
+        ]
+      },
+      {
+        "name": "Project Y",
+        "description": "Another complex project",
+        "technologies": [
+          "Python",
+          "Flask",
+          "PostgreSQL"
+        ]
+      }
+    ]
+  }
+  

@@ -9,13 +9,13 @@ type test struct {
 }
 
 func TestJsonFileRead(t *testing.T) {
-	var data test
-	err := Read("test.json", &data)
+	var jsonData any
+	err := Read("test.json", &jsonData)
 	if err != nil {
 		t.Errorf("Read() error = %v", err)
 		return
 	}
-	t.Logf("Read() data = %v", data)
+	t.Logf("Read() data = %v", jsonData)
 }
 
 func TestJsonFileWrite(t *testing.T) {
