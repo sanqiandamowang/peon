@@ -109,37 +109,44 @@ func (tree *KV_Tree) UpdateChildNodes(node *KV_Node) *KV_Node {
 	// 清空原有的子节点
 	node.Child = nil
 
-	// 根据节点的值类型来构建新的子节点链表
-	switch value := node.Value.(type) {
-	case map[string]interface{}:
-		var lastChild *KV_Node
-		for key, v := range value {
-			childNode := &KV_Node{
-				Key:   key,
-				Value: v,
+		// 根据节点的值类型来构建新的子节点链表
+		switch value := node.Value.(type) {
+		case map[string]interface{}:
+			var lastChild *KV_Node
+			for key, v := range value {
+				childNode := &KV_Node{
+					Key:   key,
+					Value: v,
+				}
+				if node.Child == nil {
+					node.Child = childNode
+				} else {
+					lastChild.Next = childNode
+				}
+				lastChild = childNode
+	
+				// 递归更新子节点的子节点
+				tree.UpdateChildNodes(childNode)
 			}
-			if node.Child == nil {
-				node.Child = childNode
-			} else {
-				lastChild.Next = childNode
+		case []interface{}:
+			var lastChild *KV_Node
+			for i, v := range value {
+				childNode := &KV_Node{
+					Key:   fmt.Sprintf("[%d]", i),
+					Value: v,
+				}
+				if node.Child == nil {
+					node.Child = childNode
+				} else {
+					lastChild.Next = childNode
+				}
+				lastChild = childNode
+	
+				// 递归更新子节点的子节点
+				tree.UpdateChildNodes(childNode)
 			}
-			lastChild = childNode
 		}
-	case []interface{}:
-		var lastChild *KV_Node
-		for i, v := range value {
-			childNode := &KV_Node{
-				Key:   fmt.Sprintf("[%d]", i),
-				Value: v,
-			}
-			if node.Child == nil {
-				node.Child = childNode
-			} else {
-				lastChild.Next = childNode
-			}
-			lastChild = childNode
-		}
-	}
+	
 
 	return node
 }
