@@ -2,6 +2,7 @@ package kvtree
 
 import (
 	"fmt"
+	"peon/utils/jsonutils"
 	"sort"
 )
 
@@ -13,34 +14,35 @@ const (
 )
 
 type KV_Node struct {
-	Index    int
+	Key      string
+	Value    interface{}
 	IsExpand bool
-	Source   *map[string]interface{}
+	Parent   *KV_Node
 	Next     *KV_Node
 	Child    *KV_Node
 }
 
 type KV_Tree struct {
 	FileName    string
-	Source      map[string]interface{}
+	Source      *map[string]interface{}
 	NodeList    *KV_Node
 	DisNodeList []*KV_Node
 }
 
-func (tree *KV_Tree) jsonToKVNode(data interface{}, key string, index *int) *KV_Node {
+func (tree *KV_Tree) jsonToKVNode(data interface{}, key string, parent *KV_Node) *KV_Node {
 	node := &KV_Node{
-		Index:    *index,
+		Key:      key,
+		Value:    data,
 		IsExpand: false,
+		Parent:   parent,
 	}
-	if node.Index == 0 {
+
+	if key == "root" {
 		node.IsExpand = true
 	}
-	(*index)++
 
 	switch value := data.(type) {
 	case map[string]interface{}:
-		source := map[string]interface{}{key: value}
-		node.Source = &source
 		var lastChild *KV_Node
 
 		// Sort keys to ensure consistent order
@@ -51,7 +53,7 @@ func (tree *KV_Tree) jsonToKVNode(data interface{}, key string, index *int) *KV_
 		sort.Strings(keys)
 
 		for _, k := range keys {
-			child := tree.jsonToKVNode(value[k], k, index)
+			child := tree.jsonToKVNode(value[k], k, node)
 			if node.Child == nil {
 				node.Child = child
 			} else {
@@ -60,11 +62,9 @@ func (tree *KV_Tree) jsonToKVNode(data interface{}, key string, index *int) *KV_
 			lastChild = child
 		}
 	case []interface{}:
-		source := map[string]interface{}{key: value}
-		node.Source = &source
 		var lastChild *KV_Node
 		for i, v := range value {
-			child := tree.jsonToKVNode(v, fmt.Sprintf("[%d]", i), index)
+			child := tree.jsonToKVNode(v, fmt.Sprintf("[%d]", i), node)
 			if node.Child == nil {
 				node.Child = child
 			} else {
@@ -72,37 +72,99 @@ func (tree *KV_Tree) jsonToKVNode(data interface{}, key string, index *int) *KV_
 			}
 			lastChild = child
 		}
-	default:
-		source := map[string]interface{}{key: value}
-		node.Source = &source
 	}
 
 	return node
 }
 
-// Function to print KV_Node structure with border using tree symbols
+// 更新父节点
+func (tree *KV_Tree) UpdateParentNodes(node *KV_Node) {
+	if node == nil || node.Parent == nil {
+		return
+	}
+	parent := node.Parent
+	switch parent.Value.(type) {
+	case map[string]interface{}:
+		newMap := make(map[string]interface{})
+		for child := parent.Child; child != nil; child = child.Next {
+			newMap[child.Key] = child.Value
+		}
+		parent.Value = newMap
+	case []interface{}:
+		newSlice := make([]interface{}, 0)
+		for child := parent.Child; child != nil; child = child.Next {
+			newSlice = append(newSlice, child.Value)
+		}
+		parent.Value = newSlice
+	}
+	tree.UpdateParentNodes(parent)
+}
+
+// 更新子节点
+func (tree *KV_Tree) UpdateChildNodes(node *KV_Node) *KV_Node {
+	if node == nil {
+		return nil
+	}
+
+	// 清空原有的子节点
+	node.Child = nil
+
+	// 根据节点的值类型来构建新的子节点链表
+	switch value := node.Value.(type) {
+	case map[string]interface{}:
+		var lastChild *KV_Node
+		for key, v := range value {
+			childNode := &KV_Node{
+				Key:   key,
+				Value: v,
+			}
+			if node.Child == nil {
+				node.Child = childNode
+			} else {
+				lastChild.Next = childNode
+			}
+			lastChild = childNode
+		}
+	case []interface{}:
+		var lastChild *KV_Node
+		for i, v := range value {
+			childNode := &KV_Node{
+				Key:   fmt.Sprintf("[%d]", i),
+				Value: v,
+			}
+			if node.Child == nil {
+				node.Child = childNode
+			} else {
+				lastChild.Next = childNode
+			}
+			lastChild = childNode
+		}
+	}
+
+	return node
+}
+func (tree *KV_Tree) Load(fileName string, source map[string]interface{}) error {
+	tree.FileName = fileName
+	tree.Source = &source
+	tree.NodeList = tree.jsonToKVNode(source, "root", nil)
+	tree.DisNodeList = make([]*KV_Node, 0)
+	return nil
+}
+
 func (tree *KV_Tree) printKVNode(node *KV_Node, indent string, isLast bool) {
 	if node == nil {
 		return
 	}
 
-	// Choose the appropriate prefix for the current node
 	prefix := TreeSignUpMiddle
 	if isLast {
 		prefix = TreeSignUpEnding
 	}
 
-	key := ""
-	if node.Source != nil {
-		for k := range *node.Source {
-			key = k
-			break
-		}
-	}
-
+	key := node.Key
 	fmt.Printf("%s%s%s %s\n", indent, prefix, TreeSignDash, key)
 	tree.DisNodeList = append(tree.DisNodeList, node)
-	// Prepare the new indent for the child nodes
+
 	newIndent := indent
 	if !isLast {
 		newIndent += TreeSignVertical + " "
@@ -110,27 +172,17 @@ func (tree *KV_Tree) printKVNode(node *KV_Node, indent string, isLast bool) {
 		newIndent += " "
 	}
 
-	// Print the child nodes
-	if node.Child != nil {
-		tree.printKVNode(node.Child, newIndent, node.Child.Next == nil)
+	if node.IsExpand {
+		if node.Child != nil {
+			tree.printKVNode(node.Child, newIndent, node.Child.Next == nil)
+		}
 	}
 
-	// Print the sibling nodes
 	if node.Next != nil {
 		tree.printKVNode(node.Next, indent, node.Next.Next == nil)
 	}
 }
-
-func (tree *KV_Tree) Load(fileName string, source map[string]interface{}) error {
-	tree.FileName = fileName
-	tree.Source = source
-	index := 0
-	tree.NodeList = tree.jsonToKVNode(source, "root", &index)
-	tree.DisNodeList = make([]*KV_Node, 0, index)
-	return nil
-}
-
-func (tree *KV_Tree) Update() {
-	index := 0
-	tree.NodeList = tree.jsonToKVNode(tree.Source, "root", &index)
+func (tree *KV_Tree)Save() error {
+	err:=jsonutils.Write(tree.FileName, tree.NodeList.Value)
+	return err
 }

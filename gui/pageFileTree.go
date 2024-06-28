@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"peon/utils/jsonutils"
 	"peon/utils/kvtree"
-	// "strconv"
 	"strings"
 
 	"github.com/CaoYnag/gocui"
@@ -23,9 +22,17 @@ const (
 var KVTree kvtree.KV_Tree
 var treeIndex int = 0
 var treeIndexMax int = 0
+func fileTreeSave(g *gocui.Gui, v *gocui.View) error{
+	err:=KVTree.Save()
+	if err!= nil {
+		peonDebug("保存失败")
+		return err
+	}
+	peonDebug("保存成功")
+	return nil
 
+}
 func fileTreeReturnPreviousView(g *gocui.Gui, v *gocui.View) error {
-
 	if v.Name() == cmdView {
 		return nil
 	}
@@ -55,9 +62,7 @@ func fileTreecursorDown(g *gocui.Gui, v *gocui.View) error {
 }
 
 func fileTreecursorUp(g *gocui.Gui, v *gocui.View) error {
-
 	err := cursorUp(g, v)
-
 	if err != nil {
 		return err
 	}
@@ -90,28 +95,19 @@ func printKVNode(v *gocui.View, node *kvtree.KV_Node, indent string, isLast bool
 		return
 	}
 
-	// Choose the appropriate prefix for the current node
 	prefix := TreeSignUpMiddle
 	if isLast {
 		prefix = TreeSignUpEnding
 	}
 
-	key := ""
-	if node.Source != nil {
-		for k := range *node.Source {
-			key = k
-			break
-		}
-	}
+	key := node.Key
 	if node.Child != nil {
 		key += "->"
 	}
 	buf := fmt.Sprintf("%s%s%s %s\n", indent, prefix, TreeSignDash, key)
 	fmt.Fprint(v, buf)
 	treeIndexMax += 1
-	peonDebug(fmt.Sprint(&node.Source))
 	KVTree.DisNodeList = append(KVTree.DisNodeList, node)
-	peonDebug(fmt.Sprint(&KVTree.DisNodeList[len(KVTree.DisNodeList)-1].Source))
 	newIndent := indent
 	if !isLast {
 		newIndent += TreeSignVertical + " "
@@ -130,39 +126,35 @@ func printKVNode(v *gocui.View, node *kvtree.KV_Node, indent string, isLast bool
 }
 
 func updatefileEditView(g *gocui.Gui) error {
-
 	v, err := g.View(fileEditView)
 	if err != nil {
-
 		return nil
 	}
 	v.Clear()
-	if KVTree.DisNodeList[treeIndex].Source != nil {
-		for _, value := range *KVTree.DisNodeList[treeIndex].Source {
-			switch value.(type) {
-			case map[string]interface{}:
-				buf, err := sonic.ConfigDefault.MarshalIndent(value, "", "  ")
-				if err != nil {
-					return err
-				}
-				_buf, err := jsonutils.SortJSON(string(buf))
-				if err != nil {
-					return err
-				}
-				fmt.Fprint(v, string(_buf))
-			case []interface{}:
-				buf, err := sonic.ConfigDefault.MarshalIndent(value, "", "  ")
-				if err != nil {
-					return err
-				}
-				_buf, err := jsonutils.SortJSON(string(buf))
-				if err != nil {
-					return err
-				}
-				fmt.Fprint(v, string(_buf))
-			default:
-				fmt.Fprint(v, value)
+	if KVTree.DisNodeList[treeIndex].Value != nil {
+		switch value := KVTree.DisNodeList[treeIndex].Value.(type) {
+		case map[string]interface{}:
+			buf, err := sonic.ConfigDefault.MarshalIndent(value, "", "  ")
+			if err != nil {
+				return err
 			}
+			_buf, err := jsonutils.SortJSON(string(buf))
+			if err != nil {
+				return err
+			}
+			fmt.Fprint(v, string(_buf))
+		case []interface{}:
+			buf, err := sonic.ConfigDefault.MarshalIndent(value, "", "  ")
+			if err != nil {
+				return err
+			}
+			_buf, err := jsonutils.SortJSON(string(buf))
+			if err != nil {
+				return err
+			}
+			fmt.Fprint(v, string(_buf))
+		default:
+			fmt.Fprint(v, value)
 		}
 	}
 	return nil
@@ -185,7 +177,6 @@ func changeView2FileEditView(g *gocui.Gui, _ *gocui.View) error {
 }
 
 func changeView2FileTreeView(g *gocui.Gui, _ *gocui.View) error {
-
 	if err := saveEditFile(g); err != nil {
 		return nil
 	}
@@ -196,50 +187,66 @@ func changeView2FileTreeView(g *gocui.Gui, _ *gocui.View) error {
 }
 
 func saveEditFile(g *gocui.Gui) error {
-	// ghostDisNodeList := KVTree.DisNodeList
-	source := KVTree.DisNodeList[treeIndex].Source
-	if source == nil {
+	node := KVTree.DisNodeList[treeIndex]
+	if node == nil {
 		return errors.New("nil value")
-	}
-	var value interface{}
-	var key = ""
-	for k, v := range *source {
-		value = v
-		key = k
-		break
 	}
 	view, err := g.View(fileEditView)
 	if err != nil {
 		return err
 	}
 	buff := strings.ReplaceAll(view.Buffer(), " ", "")
-	// 去除回车符 (\r)
 	buff = strings.ReplaceAll(buff, "\r", "")
-	// 去除换行符 (\n)
 	buff = strings.ReplaceAll(buff, "\n", "")
-	switch value.(type) {
+	var treeChangeFlag = false
+	switch value := node.Value.(type) {
 	case string:
-		(*KVTree.DisNodeList[treeIndex].Source)[key] = buff
+		node.Value = buff
 	case float64:
 		floatValue, err := cast.ToFloat64E(buff)
 		if err != nil {
 			pageError(g, "float value error: "+buff)
 			return err
 		}
-		(*KVTree.DisNodeList[treeIndex].Source)[key] = floatValue
-		peonDebug(fmt.Sprint(&(KVTree.DisNodeList[treeIndex].Source)))
+		node.Value = floatValue
 	case map[string]interface{}:
-		peonDebug(" map[string]interface{}")
+		var newData map[string]interface{}
+		err := sonic.Unmarshal([]byte(buff), &newData)
+		if err != nil {
+			pageError(g, "error decoding JSON: "+err.Error())
+			return err
+		}
+		node.Value = newData
+		treeChangeFlag = true
 	case []interface{}:
-		peonDebug(" []interface{}")
+		var newData []interface{}
+		err := sonic.Unmarshal([]byte(buff), &newData)
+		if err != nil {
+			pageError(g, "error decoding JSON: "+err.Error())
+			return err
+		}
+		node.Value = newData
+		treeChangeFlag = true
 	default:
-		peonDebug("default" + fmt.Sprintf("%T", value))
+		pageError(g, "unsupported type: "+fmt.Sprintf("%T", value))
+		return errors.New("unsupported type")
+	}
 
+	// 递归更新父节点
+	KVTree.UpdateParentNodes(node)
+	if treeChangeFlag {
+		//更新子节点
+		KVTree.DisNodeList[treeIndex] = KVTree.UpdateChildNodes(node)
+		v, _ := g.View(fileTreeView)
+		v.Clear()
+		KVTree.DisNodeList = nil
+		treeIndexMax = 0
+		printKVNode(v, KVTree.NodeList, "", true)
 	}
 	updatefileEditView(g)
-	// jsonutils.Write(KVTree.FileName, KVTree.Source)
 	return nil
 }
+
 func disfileTreeView(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 	if v, err := g.SetView(fileTreeView, 0, 3, maxX/4, maxY/2); err != nil {
@@ -269,12 +276,10 @@ func disfileTreeView(g *gocui.Gui) error {
 		v.Wrap = true
 		updatefileEditView(g)
 	}
-
 	return nil
 }
 
 func pageFileTree(g *gocui.Gui, fileName string) error {
-	//load 文件
 	var fileData map[string]interface{}
 	err := jsonutils.Read(fileName, &fileData)
 	if err != nil {
@@ -290,6 +295,5 @@ func pageFileTree(g *gocui.Gui, fileName string) error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }

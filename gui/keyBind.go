@@ -45,6 +45,9 @@ func keybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding(fileTreeView, gocui.KeyEnter, gocui.ModNone, changeView2FileEditView); err != nil {
 		return err
 	}
+	if err := g.SetKeybinding(fileTreeView, gocui.KeyCtrlS, gocui.ModNone, fileTreeSave); err != nil {
+		return err
+	}
 	if err := g.SetKeybinding(fileEditView, gocui.KeyCtrlS, gocui.ModNone, changeView2FileTreeView); err != nil {
 		return err
 	}

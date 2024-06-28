@@ -7,7 +7,7 @@ import (
 
 func TestLoad(t *testing.T) {
 	var source map[string]interface{}
-	err := jsonutils.Read("/home/sanqian/peon/peon/testValue/dev_set.json", &source)
+	err := jsonutils.Read("/home/sanqian/peon/peon/testValue/test.json", &source)
 	if err != nil {
 		t.Errorf("Read() error = %v", err)
 		return
