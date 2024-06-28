@@ -1,4 +1,4 @@
-package json
+package jsonutils
 
 import (
 	"os"

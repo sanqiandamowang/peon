@@ -1,6 +1,9 @@
 package kvtree
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 const (
 	TreeSignDash     = "─"
@@ -12,14 +15,14 @@ const (
 type KV_Node struct {
 	Index    int
 	IsExpand bool
-	Source   *map[string]any
+	Source   *map[string]interface{}
 	Next     *KV_Node
 	Child    *KV_Node
 }
 
 type KV_Tree struct {
 	FileName    string
-	Source      any
+	Source      map[string]interface{}
 	NodeList    *KV_Node
 	DisNodeList []*KV_Node
 }
@@ -33,13 +36,22 @@ func (tree *KV_Tree) jsonToKVNode(data interface{}, key string, index *int) *KV_
 		node.IsExpand = true
 	}
 	(*index)++
+
 	switch value := data.(type) {
 	case map[string]interface{}:
-		source := map[string]any{key: value}
+		source := map[string]interface{}{key: value}
 		node.Source = &source
 		var lastChild *KV_Node
-		for k, v := range value {
-			child := tree.jsonToKVNode(v, k, index)
+
+		// Sort keys to ensure consistent order
+		keys := make([]string, 0, len(value))
+		for k := range value {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		for _, k := range keys {
+			child := tree.jsonToKVNode(value[k], k, index)
 			if node.Child == nil {
 				node.Child = child
 			} else {
@@ -48,7 +60,7 @@ func (tree *KV_Tree) jsonToKVNode(data interface{}, key string, index *int) *KV_
 			lastChild = child
 		}
 	case []interface{}:
-		source := map[string]any{key: value}
+		source := map[string]interface{}{key: value}
 		node.Source = &source
 		var lastChild *KV_Node
 		for i, v := range value {
@@ -59,10 +71,9 @@ func (tree *KV_Tree) jsonToKVNode(data interface{}, key string, index *int) *KV_
 				lastChild.Next = child
 			}
 			lastChild = child
-
 		}
 	default:
-		source := map[string]any{key: value}
+		source := map[string]interface{}{key: value}
 		node.Source = &source
 	}
 
@@ -70,7 +81,7 @@ func (tree *KV_Tree) jsonToKVNode(data interface{}, key string, index *int) *KV_
 }
 
 // Function to print KV_Node structure with border using tree symbols
-func printKVNode(node *KV_Node, indent string, isLast bool) {
+func (tree *KV_Tree) printKVNode(node *KV_Node, indent string, isLast bool) {
 	if node == nil {
 		return
 	}
@@ -90,7 +101,7 @@ func printKVNode(node *KV_Node, indent string, isLast bool) {
 	}
 
 	fmt.Printf("%s%s%s %s\n", indent, prefix, TreeSignDash, key)
-
+	tree.DisNodeList = append(tree.DisNodeList, node)
 	// Prepare the new indent for the child nodes
 	newIndent := indent
 	if !isLast {
@@ -101,24 +112,24 @@ func printKVNode(node *KV_Node, indent string, isLast bool) {
 
 	// Print the child nodes
 	if node.Child != nil {
-		printKVNode(node.Child, newIndent, node.Child.Next == nil)
+		tree.printKVNode(node.Child, newIndent, node.Child.Next == nil)
 	}
 
 	// Print the sibling nodes
 	if node.Next != nil {
-		printKVNode(node.Next, indent, node.Next.Next == nil)
+		tree.printKVNode(node.Next, indent, node.Next.Next == nil)
 	}
 }
 
-func (tree *KV_Tree) Load(fileName string, source any) error {
+func (tree *KV_Tree) Load(fileName string, source map[string]interface{}) error {
 	tree.FileName = fileName
 	tree.Source = source
-
 	index := 0
 	tree.NodeList = tree.jsonToKVNode(source, "root", &index)
-
+	tree.DisNodeList = make([]*KV_Node, 0, index)
 	return nil
 }
+
 func (tree *KV_Tree) Update() {
 	index := 0
 	tree.NodeList = tree.jsonToKVNode(tree.Source, "root", &index)

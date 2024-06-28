@@ -1,6 +1,7 @@
 package gui
 
 import "github.com/CaoYnag/gocui"
+
 func keybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
 		return err
@@ -35,11 +36,17 @@ func keybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding(fileTreeView, gocui.KeyArrowUp, gocui.ModNone, fileTreecursorUp); err != nil {
 		return err
 	}
-	if err := g.SetKeybinding(fileTreeView, gocui.KeyArrowRight, gocui.ModNone, fileTreeUpdate); err != nil {
+	if err := g.SetKeybinding(fileTreeView, gocui.KeySpace, gocui.ModNone, updatefileTree); err != nil {
 		return err
 	}
-	// if err := g.SetKeybinding("msg", gocui.KeyEnter, gocui.ModNone, delMsg); err != nil {
-	// 	return err
-	// }
+	if err := g.SetKeybinding(fileTreeView, gocui.KeyArrowLeft, gocui.ModNone, fileTreeReturnPreviousView); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding(fileTreeView, gocui.KeyEnter, gocui.ModNone, changeView2FileEditView); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding(fileEditView, gocui.KeyCtrlS, gocui.ModNone, changeView2FileTreeView); err != nil {
+		return err
+	}
 	return nil
 }
