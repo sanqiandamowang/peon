@@ -22,9 +22,10 @@ const (
 var KVTree kvtree.KV_Tree
 var treeIndex int = 0
 var treeIndexMax int = 0
-func fileTreeSave(g *gocui.Gui, v *gocui.View) error{
-	err:=KVTree.Save()
-	if err!= nil {
+
+func fileTreeSave(g *gocui.Gui, v *gocui.View) error {
+	err := KVTree.Save()
+	if err != nil {
 		peonDebug("保存失败")
 		return err
 	}
@@ -81,6 +82,7 @@ func updatefileTree(_ *gocui.Gui, v *gocui.View) error {
 	v.Clear()
 	KVTree.DisNodeList = nil
 	treeIndexMax = 0
+
 	printKVNode(v, KVTree.NodeList, "", true)
 	if err := v.SetCursor(cx, cy); err != nil && treeIndex > 0 {
 		if err := v.SetOrigin(ox, oy); err != nil {
@@ -90,40 +92,95 @@ func updatefileTree(_ *gocui.Gui, v *gocui.View) error {
 	return err
 }
 
-func printKVNode(v *gocui.View, node *kvtree.KV_Node, indent string, isLast bool) {
-	if node == nil {
-		return
+// 非递归
+func printKVNode(v *gocui.View, root *kvtree.KV_Node, indent string, isLast bool) {
+	type nodeState struct {
+		node   *kvtree.KV_Node
+		indent string
+		isLast bool
 	}
 
-	prefix := TreeSignUpMiddle
-	if isLast {
-		prefix = TreeSignUpEnding
-	}
+	queue := []nodeState{{root, indent, isLast}}
 
-	key := node.Key
-	if node.Child != nil {
-		key += "->"
-	}
-	buf := fmt.Sprintf("%s%s%s %s\n", indent, prefix, TreeSignDash, key)
-	fmt.Fprint(v, buf)
-	treeIndexMax += 1
-	KVTree.DisNodeList = append(KVTree.DisNodeList, node)
-	newIndent := indent
-	if !isLast {
-		newIndent += TreeSignVertical + " "
-	} else {
-		newIndent += " "
-	}
-	if node.IsExpand {
-		if node.Child != nil {
-			printKVNode(v, node.Child, newIndent, node.Child.Next == nil)
+	for len(queue) > 0 {
+		// 弹出栈顶元素
+		current := queue[len(queue)-1]
+		queue = queue[:len(queue)-1]
+
+		if current.node == nil {
+			continue
+		}
+
+		// 构造前缀
+		prefix := TreeSignUpMiddle
+		if current.isLast {
+			prefix = TreeSignUpEnding
+		}
+
+		// 处理当前节点
+		key := current.node.Key
+		if current.node.Child != nil {
+			key += "->"
+		}
+		buf := fmt.Sprintf("%s%s%s %s\n", current.indent, prefix, TreeSignDash, key)
+		fmt.Fprint(v, buf)
+		treeIndexMax += 1
+		KVTree.DisNodeList = append(KVTree.DisNodeList, current.node)
+
+		// 更新缩进
+		newIndent := current.indent
+		if !current.isLast {
+			newIndent += TreeSignVertical + " "
+		} else {
+			newIndent += " "
+		}
+
+		// 如果有兄弟节点，先把兄弟节点放入队列
+		if current.node.Next != nil {
+			queue = append(queue, nodeState{current.node.Next, current.indent, current.node.Next.Next == nil})
+		}
+
+		// 如果当前节点是展开的，处理子节点，否则跳过
+		if current.node.IsExpand && current.node.Child != nil {
+			queue = append(queue, nodeState{current.node.Child, newIndent, current.node.Child.Next == nil})
 		}
 	}
-
-	if node.Next != nil {
-		printKVNode(v, node.Next, indent, node.Next.Next == nil)
-	}
 }
+
+//func printKVNode(v *gocui.View, node *kvtree.KV_Node, indent string, isLast bool) {
+//	if node == nil {
+//		return
+//	}
+//
+//	prefix := TreeSignUpMiddle
+//	if isLast {
+//		prefix = TreeSignUpEnding
+//	}
+//
+//	key := node.Key
+//	if node.Child != nil {
+//		key += "->"
+//	}
+//	buf := fmt.Sprintf("%s%s%s %s\n", indent, prefix, TreeSignDash, key)
+//	fmt.Fprint(v, buf)
+//	treeIndexMax += 1
+//	KVTree.DisNodeList = append(KVTree.DisNodeList, node)
+//	newIndent := indent
+//	if !isLast {
+//		newIndent += TreeSignVertical + " "
+//	} else {
+//		newIndent += " "
+//	}
+//	if node.IsExpand {
+//		if node.Child != nil {
+//			printKVNode(v, node.Child, newIndent, node.Child.Next == nil)
+//		}
+//	}
+//
+//	if node.Next != nil {
+//		printKVNode(v, node.Next, indent, node.Next.Next == nil)
+//	}
+//}
 
 func updatefileEditView(g *gocui.Gui) error {
 	v, err := g.View(fileEditView)
