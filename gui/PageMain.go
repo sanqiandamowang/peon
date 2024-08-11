@@ -2,7 +2,6 @@ package gui
 
 import (
 	"fmt"
-
 	"github.com/CaoYnag/gocui"
 )
 
@@ -27,7 +26,11 @@ func disMainpage(g *gocui.Gui) error {
 		}
 		v.Title = "Info"
 		v.Wrap = true
-		fmt.Fprintln(v, "version:"+cmdConfig.Version+"   json_dir:  "+cmdConfig.ConfigDir)
+		configDir := ""
+		if cmdConfig.ConfigDir != nil {
+			configDir = *cmdConfig.ConfigDir
+		}
+		fmt.Fprintln(v, "version:"+cmdConfig.Version+"  json_dir:"+configDir)
 	}
 
 	if v, err := g.SetView(cmdView, 0, 3, maxX/2, maxY/2); err != nil {

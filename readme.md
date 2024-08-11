@@ -10,9 +10,12 @@
 
 ## 如何使用
 
-clone 项目后 
+
 
 ```
+git clone https://github.com/sanqiandamowang/peon.git
+cd peon
+go mod tidy
 go build .
 ```
 
@@ -38,11 +41,40 @@ config/config.json
 }
 ```
 
+使用启动选项命令或配置文件来更改默认设置：
+
+```sh
+$ ./pono -h
+可视化编辑相应文件的cli工具，配置文件在config/config.json中。
+
+Usage:
+  peon [flags]
+  peon [command]
+
+Available Commands:
+  completion  生成shell自动补全脚本
+  help        Help about any command
+
+Flags:
+  -d, --dir string   打开文件目录下所有的符合格式的文件(config/config.json存在则读取配置),若无使用默认配置 (default "./")
+  -h, --help         help for peon
+
+Use "peon [command] --help" for more information about a command.
+```
+
+使用cobra提供的自动补全功能(当前会话生效)
+
+```sh
+$ ./peno completion bash > _peon_completion
+$ source _peo'n_completion_completion
+```
+
 配置 `configDir`为 peon 要操作的文件的文件夹地址
 
 ```
 ./pean
 ```
+
 显示这个界面
 
 ```
@@ -56,6 +88,8 @@ config/config.json
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘ 
 
 ```
+
+
 
 目前只支持 Edit JSON 功能  
 

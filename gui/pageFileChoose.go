@@ -45,7 +45,7 @@ func GetFilesList(dir string) ([]string, error) {
 }
 func pageJsonChoose(g *gocui.Gui) error {
 	var err error
-	fileList, err = GetFilesList(cmdConfig.ConfigDir)
+	fileList, err = GetFilesList(*cmdConfig.ConfigDir)
 	peonDebug("读取文件列表")
 	if err != nil {
 		return err

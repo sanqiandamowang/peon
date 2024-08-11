@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"fmt"
 	"peon/model/config"
 	"peon/utils/jsonutils"
 
@@ -8,6 +9,7 @@ import (
 )
 
 const (
+	version      = "0.1.0" //手动添加的版本号，用于后续版本更新
 	baseViwe     = "base"
 	infoView     = "info"
 	cmdView      = "cmd"
@@ -19,7 +21,21 @@ const (
 )
 
 var PeonGui *gocui.Gui
-var cmdConfig config.Config
+var cmdConfig = &config.Config{
+	Version:   version,
+	ConfigDir: new(string),
+	Plugins: []config.Plugin{
+		//todo 待实现功能
+		{
+			Name: "plugin1",
+			Cmd:  "ls",
+		},
+		{
+			Name: "plugin2",
+			Cmd:  "clear",
+		},
+	},
+}
 
 // var cursor_len = 0
 var isDisPageDebug = true
@@ -28,7 +44,9 @@ var previousView []*string
 func LoadConfig() error {
 	err := jsonutils.Read(configDir, &cmdConfig)
 	if err != nil {
-		return err
+		fmt.Println(err)
+		fmt.Println("加载配置文件失败，使用默认配置")
+		return nil
 	}
 	return nil
 }
