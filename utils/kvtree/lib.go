@@ -406,6 +406,81 @@ func (tree *KV_Tree) printKVNode(root *KV_Node, indent string, isLast bool) {
 //		}
 //	}
 func (tree *KV_Tree) Save() error {
-	err := jsonutils.Write(tree.FileName, tree.NodeList.Value)
+	data := tree.nodeToMap()
+
+	err := jsonutils.Write(tree.FileName, data)
 	return err
+}
+
+func (tree *KV_Tree) nodeToMap() map[string]interface{} {
+	// 如果根节点为空，返回 nil
+	if tree.NodeList == nil {
+		return nil
+	}
+
+	// 初始化根节点的映射表
+	rootMap := make(map[string]interface{})
+
+	// 使用队列来模拟树的广度优先遍历，初始时将根节点放入队列中
+	queue := []*KV_Node{tree.NodeList}
+
+	// nodeMap 用来存储每个节点对应的 map，便于构建嵌套结构
+	nodeMap := make(map[*KV_Node]map[string]interface{})
+
+	// visited 用来记录已经访问过的节点，防止重复处理
+	visited := make(map[*KV_Node]bool)
+
+	// 将根节点映射到 rootMap
+	nodeMap[tree.NodeList] = rootMap
+
+	// 开始遍历节点
+	for len(queue) > 0 {
+		// 从队列的前端取出节点进行处理
+		currentNode := queue[0]
+		queue = queue[1:]
+
+		// 如果当前节点已经访问过，则跳过
+		if visited[currentNode] {
+			continue
+		}
+		// 标记当前节点为已访问
+		visited[currentNode] = true
+
+		// 获取或创建当前节点对应的映射表
+		currentMap, exists := nodeMap[currentNode]
+		if !exists {
+			currentMap = make(map[string]interface{})
+			nodeMap[currentNode] = currentMap
+		}
+
+		// 如果不是根节点，则将节点的 Key 和 Value 添加到映射表中
+		if currentNode != tree.NodeList {
+			currentMap[currentNode.Key] = currentNode.Value
+		}
+
+		// 如果当前节点有子节点，处理子节点
+		if currentNode.Child != nil {
+			childNode := currentNode.Child
+			for childNode != nil {
+				if !visited[childNode] {
+					queue = append(queue, childNode) // 将子节点添加到队列末尾
+
+					// 如果子节点的值不是 map，则直接添加到当前映射表中
+					if _, ok := childNode.Value.(map[string]interface{}); !ok {
+						currentMap[childNode.Key] = childNode.Value
+					} else {
+						// 否则，为子节点创建新的 map，并存储在当前映射表中
+						childMap := make(map[string]interface{})
+						currentMap[childNode.Key] = childMap
+						nodeMap[childNode] = childMap
+					}
+				}
+				// 继续处理下一个兄弟节点
+				childNode = childNode.Next
+			}
+		}
+	}
+
+	// 返回最终构建的根节点映射表
+	return rootMap
 }
