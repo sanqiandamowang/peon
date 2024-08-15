@@ -1,1 +1,23 @@
-{"a":1,"age":18,"hobby":"reading","name":"a","test":[3,1,2,3]}
+{
+    "a": 1,
+    "age": 18,
+    "hobby": "reading",
+    "name": "a",
+    "step1": {
+        "step2": 1
+    },
+    "test": [
+        "3",
+        "1",
+        "2",
+        " 3"
+    ],
+    "test2": [
+        {
+            "a": 1
+        },
+        {
+            "b": "kak"
+        }
+    ]
+}
