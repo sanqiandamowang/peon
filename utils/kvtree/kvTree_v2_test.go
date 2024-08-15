@@ -14,9 +14,10 @@ func TestLoad_v2(t *testing.T) {
 	}
 	tree:= &KV_Tree_V2{}
 	tree.Source = &source
-	tree.NodeList = tree.sourceToKVNode(source, "root", nil)
+	tree.NodeList = tree.SourceToKVNode(source, "root", nil)
 	tree.NodeList.Value.(map[string]interface{})["step1"].(map[string]interface{})["step2"] =2
 	tree.NodeList.Value.(map[string]interface{})["test"].([]interface{})[0] ="wa"
 	tree.NodeList.Value.(map[string]interface{})["test2"].([]interface{})[1].(map[string]interface{})["b"] = "sa"
+	tree.NodeList.Value.(map[string]interface{})["test2"].([]interface{})[1].(map[string]interface{})["c"] = "sa"
 	tree.printKVNode(tree.NodeList, "", false)
 }

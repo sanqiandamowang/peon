@@ -7,7 +7,7 @@ require (
 	github.com/bytedance/sonic v1.11.8
 	github.com/spf13/cast v1.6.0
 	github.com/spf13/cobra v1.8.1
-	golang.org/x/text v0.17.0
+	// golang.org/x/text v0.17.0
 )
 
 require (

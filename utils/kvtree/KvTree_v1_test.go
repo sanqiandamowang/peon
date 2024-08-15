@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestLoad(t *testing.T) {
+func TestLoad_v1 (t *testing.T) {
 	var source map[string]interface{}
 	err := jsonutils.Read("/home/sanqian/peon/peon/testValue/test.json", &source)
 	if err != nil {

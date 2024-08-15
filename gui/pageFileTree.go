@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"peon/utils/jsonutils"
 	"peon/utils/kvtree"
+
+	// "regexp"
+	// "strconv"
 	"strings"
 
 	"github.com/CaoYnag/gocui"
@@ -19,10 +22,16 @@ const (
 	TreeSignUpEnding = "└"
 )
 
-var KVTree kvtree.KV_Tree
+var KVTree kvtree.KV_Tree_V2
 var treeIndex int = 0
 var treeIndexMax int = 0
-
+var treeExPandList []bool
+func updateTreeExPandList(){
+	treeExPandList = nil
+	for i:=0 ;i<treeIndex;i++{
+		treeExPandList = append(treeExPandList, KVTree.DisNodeList[i].IsExpand)
+	}
+}
 func fileTreeSave(g *gocui.Gui, v *gocui.View) error {
 	err := KVTree.Save()
 	if err != nil {
@@ -82,8 +91,9 @@ func updatefileTree(_ *gocui.Gui, v *gocui.View) error {
 	v.Clear()
 	KVTree.DisNodeList = nil
 	treeIndexMax = 0
-
-	printKVNode(v, KVTree.NodeList, "", true)
+	buildDisNodeList(KVTree.NodeList)
+	printKVTree(v, KVTree.NodeList, "", true)
+	updateTreeExPandList()
 	if err := v.SetCursor(cx, cy); err != nil && treeIndex > 0 {
 		if err := v.SetOrigin(ox, oy); err != nil {
 			return err
@@ -93,105 +103,137 @@ func updatefileTree(_ *gocui.Gui, v *gocui.View) error {
 }
 
 // 非递归
-func printKVNode(v *gocui.View, root *kvtree.KV_Node, indent string, isLast bool) {
-	type nodeState struct {
-		node   *kvtree.KV_Node
-		indent string
-		isLast bool
+// func printKVNode(v *gocui.View, root *kvtree.KV_Node, indent string, isLast bool) {
+// 	type nodeState struct {
+// 		node   *kvtree.KV_Node
+// 		indent string
+// 		isLast bool
+// 	}
+
+// 	queue := []nodeState{{root, indent, isLast}}
+
+// 	for len(queue) > 0 {
+// 		// 弹出栈顶元素
+// 		current := queue[len(queue)-1]
+// 		queue = queue[:len(queue)-1]
+
+// 		if current.node == nil {
+// 			continue
+// 		}
+
+// 		// 构造前缀
+// 		prefix := TreeSignUpMiddle
+// 		if current.isLast {
+// 			prefix = TreeSignUpEnding
+// 		}
+
+// 		// 处理当前节点
+// 		key := current.node.Key
+// 		if current.node.Child != nil {
+// 			key += "->"
+// 		}
+// 		buf := fmt.Sprintf("%s%s%s %s\n", current.indent, prefix, TreeSignDash, key)
+// 		fmt.Fprint(v, buf)
+// 		treeIndexMax += 1
+// 		KVTree.DisNodeList = append(KVTree.DisNodeList, current.node)
+
+// 		// 更新缩进
+// 		newIndent := current.indent
+// 		if !current.isLast {
+// 			newIndent += TreeSignVertical + " "
+// 		} else {
+// 			newIndent += " "
+// 		}
+
+// 		// 如果有兄弟节点，先把兄弟节点放入队列
+// 		if current.node.Next != nil {
+// 			queue = append(queue, nodeState{current.node.Next, current.indent, current.node.Next.Next == nil})
+// 		}
+
+//			// 如果当前节点是展开的，处理子节点，否则跳过
+//			if current.node.IsExpand && current.node.Child != nil {
+//				queue = append(queue, nodeState{current.node.Child, newIndent, current.node.Child.Next == nil})
+//			}
+//		}
+//	}
+
+func buildDisNodeList(node *kvtree.KV_Node_V2) {
+
+	KVTree.DisNodeList = append(KVTree.DisNodeList, node)
+	for i := 0; i < treeIndex; i++ {
+		if i >= len(treeExPandList) {
+			break;
+		}
+		if(i>= len(KVTree.DisNodeList)){
+			break;
+		}
+		KVTree.DisNodeList[i].IsExpand = treeExPandList[i]
+	}
+	if node.IsExpand {
+		if node.Child != nil {
+			buildDisNodeList(node.Child)
+		}
+	}
+	if node.Next != nil {
+		buildDisNodeList(node.Next)
+	}
+}
+func printKVTree(v *gocui.View, node *kvtree.KV_Node_V2, indent string, isLast bool) {
+	if node == nil {
+		return
 	}
 
-	queue := []nodeState{{root, indent, isLast}}
+	prefix := TreeSignUpMiddle
+	if isLast {
+		prefix = TreeSignUpEnding
+	}
 
-	for len(queue) > 0 {
-		// 弹出栈顶元素
-		current := queue[len(queue)-1]
-		queue = queue[:len(queue)-1]
-
-		if current.node == nil {
-			continue
+	key := node.Key
+	if node.Child != nil {
+		key += "->"
+	}
+	buf := fmt.Sprintf("%s%s%s %s\n", indent, prefix, TreeSignDash, key)
+	fmt.Fprint(v, buf)
+	treeIndexMax += 1
+	// KVTree.DisNodeList = append(KVTree.DisNodeList, node)
+	newIndent := indent
+	if !isLast {
+		newIndent += TreeSignVertical + " "
+	} else {
+		newIndent += " "
+	}
+	if node.IsExpand {
+		if node.Child != nil {
+			printKVTree(v, node.Child, newIndent, node.Child.Next == nil)
 		}
+	}
 
-		// 构造前缀
-		prefix := TreeSignUpMiddle
-		if current.isLast {
-			prefix = TreeSignUpEnding
-		}
-
-		// 处理当前节点
-		key := current.node.Key
-		if current.node.Child != nil {
-			key += "->"
-		}
-		buf := fmt.Sprintf("%s%s%s %s\n", current.indent, prefix, TreeSignDash, key)
-		fmt.Fprint(v, buf)
-		treeIndexMax += 1
-		KVTree.DisNodeList = append(KVTree.DisNodeList, current.node)
-
-		// 更新缩进
-		newIndent := current.indent
-		if !current.isLast {
-			newIndent += TreeSignVertical + " "
-		} else {
-			newIndent += " "
-		}
-
-		// 如果有兄弟节点，先把兄弟节点放入队列
-		if current.node.Next != nil {
-			queue = append(queue, nodeState{current.node.Next, current.indent, current.node.Next.Next == nil})
-		}
-
-		// 如果当前节点是展开的，处理子节点，否则跳过
-		if current.node.IsExpand && current.node.Child != nil {
-			queue = append(queue, nodeState{current.node.Child, newIndent, current.node.Child.Next == nil})
-		}
+	if node.Next != nil {
+		printKVTree(v, node.Next, indent, node.Next.Next == nil)
 	}
 }
 
-//func printKVNode(v *gocui.View, node *kvtree.KV_Node, indent string, isLast bool) {
-//	if node == nil {
-//		return
-//	}
-//
-//	prefix := TreeSignUpMiddle
-//	if isLast {
-//		prefix = TreeSignUpEnding
-//	}
-//
-//	key := node.Key
-//	if node.Child != nil {
-//		key += "->"
-//	}
-//	buf := fmt.Sprintf("%s%s%s %s\n", indent, prefix, TreeSignDash, key)
-//	fmt.Fprint(v, buf)
-//	treeIndexMax += 1
-//	KVTree.DisNodeList = append(KVTree.DisNodeList, node)
-//	newIndent := indent
-//	if !isLast {
-//		newIndent += TreeSignVertical + " "
-//	} else {
-//		newIndent += " "
-//	}
-//	if node.IsExpand {
-//		if node.Child != nil {
-//			printKVNode(v, node.Child, newIndent, node.Child.Next == nil)
-//		}
-//	}
-//
-//	if node.Next != nil {
-//		printKVNode(v, node.Next, indent, node.Next.Next == nil)
-//	}
-//}
-
 func updatefileEditView(g *gocui.Gui) error {
+	var node *kvtree.KV_Node_V2 = KVTree.DisNodeList[treeIndex]
+	var disValue interface{}
 	v, err := g.View(fileEditView)
 	if err != nil {
 		return nil
 	}
 	v.Clear()
-	if KVTree.DisNodeList[treeIndex].Value != nil {
-		switch value := KVTree.DisNodeList[treeIndex].Value.(type) {
+	if node.Value != nil {
+		switch value := node.Value.(type) {
 		case map[string]interface{}:
-			buf, err := sonic.ConfigDefault.MarshalIndent(value, "", "  ")
+			if node.Key == "root" {
+				disValue = node.Value
+			} else {
+				if KVTree.DisNodeList[treeIndex].Child != nil {
+					disValue = node.Value
+				} else {
+					disValue = node.Value.(map[string]interface{})[node.Key]
+				}
+			}
+			buf, err := sonic.ConfigDefault.MarshalIndent(disValue, "", "  ")
 			if err != nil {
 				return err
 			}
@@ -201,7 +243,14 @@ func updatefileEditView(g *gocui.Gui) error {
 			}
 			fmt.Fprint(v, string(_buf))
 		case []interface{}:
-			buf, err := sonic.ConfigDefault.MarshalIndent(value, "", "  ")
+
+			if node.Child != nil {
+				disValue = node.Value
+			} else {
+				disValue = node.Value.([]interface{})[node.No]
+			}
+
+			buf, err := sonic.ConfigDefault.MarshalIndent(disValue, "", "  ")
 			if err != nil {
 				return err
 			}
@@ -214,6 +263,8 @@ func updatefileEditView(g *gocui.Gui) error {
 			fmt.Fprint(v, value)
 		}
 	}
+	v.SetCursor(0, 0)
+	v.SetOrigin(0, 0)
 	return nil
 }
 
@@ -248,6 +299,28 @@ func saveEditFile(g *gocui.Gui) error {
 	if node == nil {
 		return errors.New("nil value")
 	}
+	var sourceValue interface{}
+	switch node.Value.(type) {
+	case map[string]interface{}:
+		if node.Key == "root" {
+			sourceValue = node.Value
+		} else {
+			if node.Child != nil {
+				sourceValue = node.Value
+			} else {
+				sourceValue = node.Value.(map[string]interface{})[node.Key]
+			}
+		}
+	case []interface{}:
+		if node.Child != nil {
+			sourceValue = node.Value
+		} else {
+			sourceValue = node.Value.([]interface{})[node.No]
+		}
+	default:
+		sourceValue = nil
+	}
+
 	view, err := g.View(fileEditView)
 	if err != nil {
 		return err
@@ -256,16 +329,26 @@ func saveEditFile(g *gocui.Gui) error {
 	buff = strings.ReplaceAll(buff, "\r", "")
 	buff = strings.ReplaceAll(buff, "\n", "")
 	var treeChangeFlag = false
-	switch value := node.Value.(type) {
+	parentValueType := KVTree.GetPraentValueType(node)
+	switch value := sourceValue.(type) {
 	case string:
-		node.Value = buff
+		buff = strings.ReplaceAll(buff, "\"", "")
+		if parentValueType == kvtree.TYPE_MAP {
+			node.Value.(map[string]interface{})[node.Key] = buff
+		} else if parentValueType == kvtree.TYPE_ARRAY {
+			node.Value.([]interface{})[node.No] = buff
+		}
 	case float64:
 		floatValue, err := cast.ToFloat64E(buff)
 		if err != nil {
 			pageError(g, "float value error: "+buff)
 			return err
 		}
-		node.Value = floatValue
+		if parentValueType == kvtree.TYPE_MAP {
+			node.Value.(map[string]interface{})[node.Key] = floatValue
+		} else if parentValueType == kvtree.TYPE_ARRAY {
+			node.Value.([]interface{})[node.No] = floatValue
+		}
 	case map[string]interface{}:
 		var newData map[string]interface{}
 		err := sonic.Unmarshal([]byte(buff), &newData)
@@ -273,7 +356,14 @@ func saveEditFile(g *gocui.Gui) error {
 			pageError(g, "error decoding JSON: "+err.Error())
 			return err
 		}
-		node.Value = newData
+		if parentValueType == kvtree.TYPE_MAP {
+			node.Parent.Value.(map[string]interface{})[node.Key] = newData
+		} else if parentValueType == kvtree.TYPE_ARRAY {
+			node.Value.([]interface{})[node.No] = newData
+		} else if parentValueType == kvtree.TYPE_ROOT {
+
+			KVTree.NodeList.Value = newData
+		}
 		treeChangeFlag = true
 	case []interface{}:
 		var newData []interface{}
@@ -282,23 +372,49 @@ func saveEditFile(g *gocui.Gui) error {
 			pageError(g, "error decoding JSON: "+err.Error())
 			return err
 		}
-		node.Value = newData
+		if parentValueType == kvtree.TYPE_MAP {
+			node.Parent.Value.(map[string]interface{})[node.Key]= newData
+		} else if parentValueType == kvtree.TYPE_ARRAY {
+			node.Parent.Value.([]interface{})[node.No] = newData
+		}
+		treeChangeFlag = true
+	case nil:
+		var newData interface{}
+		var newDataArray []interface{}
+		err := sonic.Unmarshal([]byte(buff), &newData)
+		if err != nil {
+			err := sonic.Unmarshal([]byte(buff), &newDataArray)
+			{
+				if err != nil {
+					err := sonic.Unmarshal([]byte(buff), &newDataArray)
+					pageError(g, "error decoding JSON: "+err.Error())
+					return err
+				} else {
+					node.Value.(map[string]interface{})[node.Key] = newDataArray
+					return nil
+				}
+			}
+		}
+		node.Value.(map[string]interface{})[node.Key] = newData
 		treeChangeFlag = true
 	default:
 		pageError(g, "unsupported type: "+fmt.Sprintf("%T", value))
 		return errors.New("unsupported type")
 	}
-
-	// 递归更新父节点
-	KVTree.UpdateParentNodes(node)
 	if treeChangeFlag {
-		//更新子节点
-		KVTree.DisNodeList[treeIndex] = KVTree.UpdateChildNodes(node)
+		//更新节点
+		KVTree.Source = KVTree.NodeList.Value
+		KVTree.NodeList = KVTree.SourceToKVNode(KVTree.Source, "root", nil)
+		if node.Parent != nil {
+			KVTree.SourceToKVNode(node.Parent.Value, node.Parent.Key, node.Parent.Parent)
+		}
 		v, _ := g.View(fileTreeView)
 		v.Clear()
 		KVTree.DisNodeList = nil
 		treeIndexMax = 0
-		printKVNode(v, KVTree.NodeList, "", true)
+		buildDisNodeList(KVTree.NodeList)
+		printKVTree(v, KVTree.NodeList, "", true)
+		updateTreeExPandList()
 	}
 	updatefileEditView(g)
 	return nil
@@ -317,7 +433,9 @@ func disfileTreeView(g *gocui.Gui) error {
 		v.Wrap = true
 		treeIndexMax = 0
 		treeIndex = 0
-		printKVNode(v, KVTree.NodeList, "", true)
+		buildDisNodeList(KVTree.NodeList)
+		printKVTree(v, KVTree.NodeList, "", true)
+		updateTreeExPandList()
 		if _, err := g.SetCurrentView(fileTreeView); err != nil {
 			return err
 		}
@@ -346,7 +464,7 @@ func pageFileTree(g *gocui.Gui, fileName string) error {
 	KVTree.Load(fileName, fileData)
 	KVTree.DisNodeList = KVTree.DisNodeList[:0]
 	peonDebug("load file success " + fileName)
-
+	treeExPandList =nil
 	updatePreviousView()
 	err = disfileTreeView(g)
 	if err != nil {
