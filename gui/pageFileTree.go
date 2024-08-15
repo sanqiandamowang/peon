@@ -28,7 +28,7 @@ var treeIndexMax int = 0
 var treeExPandList []bool
 func updateTreeExPandList(){
 	treeExPandList = nil
-	for i:=0 ;i<treeIndex;i++{
+	for i:=0 ;i<=treeIndex;i++{
 		treeExPandList = append(treeExPandList, KVTree.DisNodeList[i].IsExpand)
 	}
 }
@@ -359,7 +359,7 @@ func saveEditFile(g *gocui.Gui) error {
 		if parentValueType == kvtree.TYPE_MAP {
 			node.Parent.Value.(map[string]interface{})[node.Key] = newData
 		} else if parentValueType == kvtree.TYPE_ARRAY {
-			node.Value.([]interface{})[node.No] = newData
+			node.Parent.Value.([]interface{})[node.No] = newData
 		} else if parentValueType == kvtree.TYPE_ROOT {
 
 			KVTree.NodeList.Value = newData
