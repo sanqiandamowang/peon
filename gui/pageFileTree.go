@@ -22,18 +22,22 @@ const (
 	TreeSignUpEnding = "└"
 )
 
-var KVTree kvtree.KV_Tree_V2
+var KV_tree kvtree.KV_Tree_V2
 var treeIndex int = 0
 var treeIndexMax int = 0
-var treeExPandList []bool
-func updateTreeExPandList(){
-	treeExPandList = nil
-	for i:=0 ;i<=treeIndex;i++{
-		treeExPandList = append(treeExPandList, KVTree.DisNodeList[i].IsExpand)
+var treeIndexIsExpandBuf *bool
+// var treeExPandList []bool
+var disNodeList []*kvtree.KV_Node_V2
+func updateTtreeIndexIsExpandBuf(){
+	if treeIndexIsExpandBuf==nil{
+		treeIndexIsExpandBuf = new(bool)
 	}
+	*treeIndexIsExpandBuf = disNodeList[treeIndex].IsExpand
+	disNodeList = nil
+	treeIndexMax = 0
 }
 func fileTreeSave(g *gocui.Gui, v *gocui.View) error {
-	err := KVTree.Save()
+	err := KV_tree.Save()
 	if err != nil {
 		peonDebug("保存失败")
 		return err
@@ -87,13 +91,13 @@ func updatefileTree(_ *gocui.Gui, v *gocui.View) error {
 	var err error = nil
 	cx, cy := v.Cursor()
 	ox, oy := v.Origin()
-	KVTree.DisNodeList[treeIndex].IsExpand = !KVTree.DisNodeList[treeIndex].IsExpand
+	disNodeList[treeIndex].IsExpand = !disNodeList[treeIndex].IsExpand
 	v.Clear()
-	KVTree.DisNodeList = nil
-	treeIndexMax = 0
-	buildDisNodeList(KVTree.NodeList)
-	printKVTree(v, KVTree.NodeList, "", true)
-	updateTreeExPandList()
+	updateTtreeIndexIsExpandBuf()
+	
+	buildDisNodeList(KV_tree.NodeList)
+	printKVTree(v, KV_tree.NodeList, "", true)
+	
 	if err := v.SetCursor(cx, cy); err != nil && treeIndex > 0 {
 		if err := v.SetOrigin(ox, oy); err != nil {
 			return err
@@ -135,7 +139,7 @@ func updatefileTree(_ *gocui.Gui, v *gocui.View) error {
 // 		buf := fmt.Sprintf("%s%s%s %s\n", current.indent, prefix, TreeSignDash, key)
 // 		fmt.Fprint(v, buf)
 // 		treeIndexMax += 1
-// 		KVTree.DisNodeList = append(KVTree.DisNodeList, current.node)
+// 		disNodeList = append(disNodeList, current.node)
 
 // 		// 更新缩进
 // 		newIndent := current.indent
@@ -159,15 +163,9 @@ func updatefileTree(_ *gocui.Gui, v *gocui.View) error {
 
 func buildDisNodeList(node *kvtree.KV_Node_V2) {
 
-	KVTree.DisNodeList = append(KVTree.DisNodeList, node)
-	for i := 0; i < treeIndex; i++ {
-		if i >= len(treeExPandList) {
-			break;
-		}
-		if(i>= len(KVTree.DisNodeList)){
-			break;
-		}
-		KVTree.DisNodeList[i].IsExpand = treeExPandList[i]
+	disNodeList = append(disNodeList, node)
+	if treeIndex == len(disNodeList)-1 &&  treeIndexIsExpandBuf!=nil {
+		disNodeList[treeIndex].IsExpand = *treeIndexIsExpandBuf
 	}
 	if node.IsExpand {
 		if node.Child != nil {
@@ -195,7 +193,7 @@ func printKVTree(v *gocui.View, node *kvtree.KV_Node_V2, indent string, isLast b
 	buf := fmt.Sprintf("%s%s%s %s\n", indent, prefix, TreeSignDash, key)
 	fmt.Fprint(v, buf)
 	treeIndexMax += 1
-	// KVTree.DisNodeList = append(KVTree.DisNodeList, node)
+	// disNodeList = append(disNodeList, node)
 	newIndent := indent
 	if !isLast {
 		newIndent += TreeSignVertical + " "
@@ -214,7 +212,7 @@ func printKVTree(v *gocui.View, node *kvtree.KV_Node_V2, indent string, isLast b
 }
 
 func updatefileEditView(g *gocui.Gui) error {
-	var node *kvtree.KV_Node_V2 = KVTree.DisNodeList[treeIndex]
+	var node *kvtree.KV_Node_V2 = disNodeList[treeIndex]
 	var disValue interface{}
 	v, err := g.View(fileEditView)
 	if err != nil {
@@ -227,7 +225,7 @@ func updatefileEditView(g *gocui.Gui) error {
 			if node.Key == "root" {
 				disValue = node.Value
 			} else {
-				if KVTree.DisNodeList[treeIndex].Child != nil {
+				if disNodeList[treeIndex].Child != nil {
 					disValue = node.Value
 				} else {
 					disValue = node.Value.(map[string]interface{})[node.Key]
@@ -295,7 +293,7 @@ func changeView2FileTreeView(g *gocui.Gui, _ *gocui.View) error {
 }
 
 func saveEditFile(g *gocui.Gui) error {
-	node := KVTree.DisNodeList[treeIndex]
+	node := disNodeList[treeIndex]
 	if node == nil {
 		return errors.New("nil value")
 	}
@@ -329,7 +327,7 @@ func saveEditFile(g *gocui.Gui) error {
 	buff = strings.ReplaceAll(buff, "\r", "")
 	buff = strings.ReplaceAll(buff, "\n", "")
 	var treeChangeFlag = false
-	parentValueType := KVTree.GetPraentValueType(node)
+	parentValueType := KV_tree.GetPraentValueType(node)
 	switch value := sourceValue.(type) {
 	case string:
 		buff = strings.ReplaceAll(buff, "\"", "")
@@ -361,8 +359,7 @@ func saveEditFile(g *gocui.Gui) error {
 		} else if parentValueType == kvtree.TYPE_ARRAY {
 			node.Parent.Value.([]interface{})[node.No] = newData
 		} else if parentValueType == kvtree.TYPE_ROOT {
-
-			KVTree.NodeList.Value = newData
+			KV_tree.NodeList.Value = newData 
 		}
 		treeChangeFlag = true
 	case []interface{}:
@@ -402,19 +399,13 @@ func saveEditFile(g *gocui.Gui) error {
 		return errors.New("unsupported type")
 	}
 	if treeChangeFlag {
-		//更新节点
-		KVTree.Source = KVTree.NodeList.Value
-		KVTree.NodeList = KVTree.SourceToKVNode(KVTree.Source, "root", nil)
-		if node.Parent != nil {
-			KVTree.SourceToKVNode(node.Parent.Value, node.Parent.Key, node.Parent.Parent)
-		}
+		KV_tree.UpdateNodeWithChild(node)
 		v, _ := g.View(fileTreeView)
 		v.Clear()
-		KVTree.DisNodeList = nil
-		treeIndexMax = 0
-		buildDisNodeList(KVTree.NodeList)
-		printKVTree(v, KVTree.NodeList, "", true)
-		updateTreeExPandList()
+		
+		updateTtreeIndexIsExpandBuf()
+		buildDisNodeList(KV_tree.NodeList)
+		printKVTree(v, KV_tree.NodeList, "", true)
 	}
 	updatefileEditView(g)
 	return nil
@@ -433,9 +424,8 @@ func disfileTreeView(g *gocui.Gui) error {
 		v.Wrap = true
 		treeIndexMax = 0
 		treeIndex = 0
-		buildDisNodeList(KVTree.NodeList)
-		printKVTree(v, KVTree.NodeList, "", true)
-		updateTreeExPandList()
+		buildDisNodeList(KV_tree.NodeList)
+		printKVTree(v, KV_tree.NodeList, "", true)
 		if _, err := g.SetCurrentView(fileTreeView); err != nil {
 			return err
 		}
@@ -461,10 +451,10 @@ func pageFileTree(g *gocui.Gui, fileName string) error {
 		peonDebug("Error loading file: " + fileName + " " + err.Error())
 		return err
 	}
-	KVTree.Load(fileName, fileData)
-	KVTree.DisNodeList = KVTree.DisNodeList[:0]
+	KV_tree.Load(fileName, fileData)
+	disNodeList = disNodeList[:0]
 	peonDebug("load file success " + fileName)
-	treeExPandList =nil
+	treeIndexIsExpandBuf =nil
 	updatePreviousView()
 	err = disfileTreeView(g)
 	if err != nil {

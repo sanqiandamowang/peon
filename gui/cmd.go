@@ -70,14 +70,14 @@ func ensureDir(dir *string) error {
 	// 使用 os.Stat 检查目录是否存在
 	info, err := os.Stat(*dir)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("目录不存在: %s", dir)
+		return fmt.Errorf("目录不存在: %s", (*dir))
 	}
 	if err != nil {
 		return err
 	}
 	// 检查路径是否是目录
 	if !info.IsDir() {
-		return fmt.Errorf("路径不是目录: %s", dir)
+		return fmt.Errorf("路径不是目录: %s", (*dir))
 	}
 	return nil
 }
