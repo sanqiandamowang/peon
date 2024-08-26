@@ -1,9 +1,14 @@
 package kvtree
 
 import (
+	"errors"
 	"fmt"
 	"peon/utils/jsonutils"
 	"sort"
+	"strings"
+
+	"github.com/bytedance/sonic"
+	"github.com/spf13/cast"
 )
 
 type KV_Node_V2 struct {
@@ -16,11 +21,12 @@ type KV_Node_V2 struct {
 	No       int
 }
 type KV_Tree_V2 struct {
-	FileName    string
-	Source      interface{}
-	NodeList    *KV_Node_V2
+	FileName string
+	Source   interface{}
+	NodeList *KV_Node_V2
 	// DisNodeList []*KV_Node_V2
 }
+
 // 枚举
 const (
 	TYPE_ROOT = iota
@@ -30,7 +36,7 @@ const (
 )
 
 // 0 root 1 map 2 []interface{}
-func (tree *KV_Tree_V2) GetPraentValueType(node *KV_Node_V2) int {
+func (tree *KV_Tree_V2) getPraentValueType(node *KV_Node_V2) int {
 
 	if node.Parent == nil {
 		if node.Key == "root" {
@@ -48,8 +54,7 @@ func (tree *KV_Tree_V2) GetPraentValueType(node *KV_Node_V2) int {
 		return TYPE_ERR
 	}
 }
-
-func (tree *KV_Tree_V2) UpdateNodeWithChild(node *KV_Node_V2) *KV_Node_V2 {
+func (tree *KV_Tree_V2) updateNodeWithChild(node *KV_Node_V2) *KV_Node_V2 {
 	parent := node.Parent
 	if parent == nil {
 		//root
@@ -85,6 +90,119 @@ func (tree *KV_Tree_V2) UpdateNodeWithChild(node *KV_Node_V2) *KV_Node_V2 {
 	}
 	return newNode
 }
+func (tree *KV_Tree_V2) getNodeValue(node *KV_Node_V2) interface{} {
+	var sourceValue interface{}
+	switch node.Value.(type) {
+	case map[string]interface{}:
+		if node.Key == "root" {
+			sourceValue = node.Value
+		} else {
+			if node.Child != nil {
+				sourceValue = node.Value
+			} else {
+				sourceValue = node.Value.(map[string]interface{})[node.Key]
+			}
+		}
+	case []interface{}:
+		if node.Child != nil {
+			sourceValue = node.Value
+		} else {
+			sourceValue = node.Value.([]interface{})[node.No]
+		}
+	default:
+		sourceValue = nil
+	}
+	return sourceValue
+}
+func (tree *KV_Tree_V2) UpdateNode(node *KV_Node_V2, updateBuf string) (err error,isTrerChange bool) {
+	sourceValue:= tree.getNodeValue(node)
+	buf := strings.ReplaceAll(updateBuf, " ", "")
+	buf = strings.ReplaceAll(buf, "\r", "")
+	buf = strings.ReplaceAll(buf, "\n", "")
+	var treeChangeFlag = false
+	parentValueType := tree.getPraentValueType(node)
+	switch nodeValueType := sourceValue.(type){
+	case string:
+		buf = strings.ReplaceAll(buf, "\"", "")
+		if parentValueType == TYPE_MAP {
+			node.Value.(map[string]interface{})[node.Key] = buf
+		} else if parentValueType == TYPE_ARRAY {
+			node.Value.([]interface{})[node.No] = buf
+		}
+	case float64:
+		newFloatValue, err := cast.ToFloat64E(buf)
+		if err != nil {
+			// pageError(g, "float value error: "+buff)
+			return err,false
+		}
+		if parentValueType == TYPE_MAP {
+			node.Value.(map[string]interface{})[node.Key] = newFloatValue
+		} else if parentValueType == TYPE_ARRAY {
+			node.Value.([]interface{})[node.No] = newFloatValue
+		}
+	case map[string]interface{}:
+		var newMapData map[string]interface{}
+		err := sonic.Unmarshal([]byte(buf), &newMapData)
+		if err != nil {
+			// pageError(g, "error decoding JSON: "+err.Error())
+			return err,false
+		}
+		if parentValueType == TYPE_MAP {
+			node.Parent.Value.(map[string]interface{})[node.Key] = newMapData
+		} else if parentValueType == TYPE_ARRAY {
+			node.Parent.Value.([]interface{})[node.No] = newMapData
+		} else if parentValueType == TYPE_ROOT {
+			tree.NodeList.Value = newMapData 
+		}
+		treeChangeFlag = true
+	case []interface{}:
+		var newArrayData []interface{}
+		err := sonic.Unmarshal([]byte(buf), &newArrayData)
+		if err != nil {
+			// pageError(g, "error decoding JSON: "+err.Error())
+			return err,false
+		}
+		if parentValueType == TYPE_MAP {
+			node.Parent.Value.(map[string]interface{})[node.Key]= newArrayData
+		} else if parentValueType == TYPE_ARRAY {
+			node.Parent.Value.([]interface{})[node.No] = newArrayData
+		}
+		treeChangeFlag = true
+	case nil:
+		var newData interface{}
+		var newDataArray []interface{}
+		err := sonic.Unmarshal([]byte(buf), &newData)
+		if err != nil {
+			err := sonic.Unmarshal([]byte(buf), &newDataArray)
+			{
+				if err != nil {
+					err := sonic.Unmarshal([]byte(buf), &newDataArray)
+					//pageError(g, "error decoding JSON: "+err.Error())
+					return err,false
+				} else {
+					node.Value.(map[string]interface{})[node.Key] = newDataArray
+				}
+			}
+		}else
+		{
+			node.Value.(map[string]interface{})[node.Key] = newData
+		}
+		treeChangeFlag = true
+	default:
+		// pageError(g, "unsupported type: "+fmt.Sprintf("%T", value))
+		return errors.New("unsupported type: "+fmt.Sprintf("%T", nodeValueType)),false
+	}
+	if treeChangeFlag {
+		tree.updateNodeWithChild(node)
+		// v, _ := g.View(fileTreeView)
+		// v.Clear()
+		
+		// updateTtreeIndexIsExpandBuf()
+		// buildDisNodeList(KV_tree.NodeList)
+		// printKVTree(v, KV_tree.NodeList, "", true)
+	}
+	return nil,treeChangeFlag
+}
 func (tree *KV_Tree_V2) SourceToKVNode(data interface{}, key string, parent *KV_Node_V2) *KV_Node_V2 {
 	var node *KV_Node_V2
 	switch dataType := data.(type) {
@@ -93,7 +211,7 @@ func (tree *KV_Tree_V2) SourceToKVNode(data interface{}, key string, parent *KV_
 			Key:      key,
 			Value:    data,
 			IsExpand: key == "root",
-			Parent: parent,
+			Parent:   parent,
 		}
 		var lastNode *KV_Node_V2
 		keys := make([]string, 0, len(node.Value.(map[string]interface{})))
@@ -115,7 +233,7 @@ func (tree *KV_Tree_V2) SourceToKVNode(data interface{}, key string, parent *KV_
 			Key:      key,
 			Value:    data,
 			IsExpand: key == "root",
-			Parent: parent,
+			Parent:   parent,
 		}
 		var lastNode *KV_Node_V2
 		for i := range dataType {
@@ -134,7 +252,7 @@ func (tree *KV_Tree_V2) SourceToKVNode(data interface{}, key string, parent *KV_
 				Key:      key,
 				Value:    parent.Value,
 				IsExpand: key == "root",
-				Parent: parent,
+				Parent:   parent,
 			}
 		}
 	}

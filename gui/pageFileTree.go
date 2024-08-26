@@ -6,13 +6,9 @@ import (
 	"peon/utils/jsonutils"
 	"peon/utils/kvtree"
 
-	// "regexp"
-	// "strconv"
-	"strings"
 
 	"github.com/CaoYnag/gocui"
 	"github.com/bytedance/sonic"
-	"github.com/spf13/cast"
 )
 
 const (
@@ -105,62 +101,6 @@ func updatefileTree(_ *gocui.Gui, v *gocui.View) error {
 	}
 	return err
 }
-
-// 非递归
-// func printKVNode(v *gocui.View, root *kvtree.KV_Node, indent string, isLast bool) {
-// 	type nodeState struct {
-// 		node   *kvtree.KV_Node
-// 		indent string
-// 		isLast bool
-// 	}
-
-// 	queue := []nodeState{{root, indent, isLast}}
-
-// 	for len(queue) > 0 {
-// 		// 弹出栈顶元素
-// 		current := queue[len(queue)-1]
-// 		queue = queue[:len(queue)-1]
-
-// 		if current.node == nil {
-// 			continue
-// 		}
-
-// 		// 构造前缀
-// 		prefix := TreeSignUpMiddle
-// 		if current.isLast {
-// 			prefix = TreeSignUpEnding
-// 		}
-
-// 		// 处理当前节点
-// 		key := current.node.Key
-// 		if current.node.Child != nil {
-// 			key += "->"
-// 		}
-// 		buf := fmt.Sprintf("%s%s%s %s\n", current.indent, prefix, TreeSignDash, key)
-// 		fmt.Fprint(v, buf)
-// 		treeIndexMax += 1
-// 		disNodeList = append(disNodeList, current.node)
-
-// 		// 更新缩进
-// 		newIndent := current.indent
-// 		if !current.isLast {
-// 			newIndent += TreeSignVertical + " "
-// 		} else {
-// 			newIndent += " "
-// 		}
-
-// 		// 如果有兄弟节点，先把兄弟节点放入队列
-// 		if current.node.Next != nil {
-// 			queue = append(queue, nodeState{current.node.Next, current.indent, current.node.Next.Next == nil})
-// 		}
-
-//			// 如果当前节点是展开的，处理子节点，否则跳过
-//			if current.node.IsExpand && current.node.Child != nil {
-//				queue = append(queue, nodeState{current.node.Child, newIndent, current.node.Child.Next == nil})
-//			}
-//		}
-//	}
-
 func buildDisNodeList(node *kvtree.KV_Node_V2) {
 
 	disNodeList = append(disNodeList, node)
@@ -297,112 +237,20 @@ func saveEditFile(g *gocui.Gui) error {
 	if node == nil {
 		return errors.New("nil value")
 	}
-	var sourceValue interface{}
-	switch node.Value.(type) {
-	case map[string]interface{}:
-		if node.Key == "root" {
-			sourceValue = node.Value
-		} else {
-			if node.Child != nil {
-				sourceValue = node.Value
-			} else {
-				sourceValue = node.Value.(map[string]interface{})[node.Key]
-			}
-		}
-	case []interface{}:
-		if node.Child != nil {
-			sourceValue = node.Value
-		} else {
-			sourceValue = node.Value.([]interface{})[node.No]
-		}
-	default:
-		sourceValue = nil
-	}
-
 	view, err := g.View(fileEditView)
 	if err != nil {
 		return err
 	}
-	buff := strings.ReplaceAll(view.Buffer(), " ", "")
-	buff = strings.ReplaceAll(buff, "\r", "")
-	buff = strings.ReplaceAll(buff, "\n", "")
-	var treeChangeFlag = false
-	parentValueType := KV_tree.GetPraentValueType(node)
-	switch value := sourceValue.(type) {
-	case string:
-		buff = strings.ReplaceAll(buff, "\"", "")
-		if parentValueType == kvtree.TYPE_MAP {
-			node.Value.(map[string]interface{})[node.Key] = buff
-		} else if parentValueType == kvtree.TYPE_ARRAY {
-			node.Value.([]interface{})[node.No] = buff
-		}
-	case float64:
-		floatValue, err := cast.ToFloat64E(buff)
-		if err != nil {
-			pageError(g, "float value error: "+buff)
-			return err
-		}
-		if parentValueType == kvtree.TYPE_MAP {
-			node.Value.(map[string]interface{})[node.Key] = floatValue
-		} else if parentValueType == kvtree.TYPE_ARRAY {
-			node.Value.([]interface{})[node.No] = floatValue
-		}
-	case map[string]interface{}:
-		var newData map[string]interface{}
-		err := sonic.Unmarshal([]byte(buff), &newData)
-		if err != nil {
-			pageError(g, "error decoding JSON: "+err.Error())
-			return err
-		}
-		if parentValueType == kvtree.TYPE_MAP {
-			node.Parent.Value.(map[string]interface{})[node.Key] = newData
-		} else if parentValueType == kvtree.TYPE_ARRAY {
-			node.Parent.Value.([]interface{})[node.No] = newData
-		} else if parentValueType == kvtree.TYPE_ROOT {
-			KV_tree.NodeList.Value = newData 
-		}
-		treeChangeFlag = true
-	case []interface{}:
-		var newData []interface{}
-		err := sonic.Unmarshal([]byte(buff), &newData)
-		if err != nil {
-			pageError(g, "error decoding JSON: "+err.Error())
-			return err
-		}
-		if parentValueType == kvtree.TYPE_MAP {
-			node.Parent.Value.(map[string]interface{})[node.Key]= newData
-		} else if parentValueType == kvtree.TYPE_ARRAY {
-			node.Parent.Value.([]interface{})[node.No] = newData
-		}
-		treeChangeFlag = true
-	case nil:
-		var newData interface{}
-		var newDataArray []interface{}
-		err := sonic.Unmarshal([]byte(buff), &newData)
-		if err != nil {
-			err := sonic.Unmarshal([]byte(buff), &newDataArray)
-			{
-				if err != nil {
-					err := sonic.Unmarshal([]byte(buff), &newDataArray)
-					pageError(g, "error decoding JSON: "+err.Error())
-					return err
-				} else {
-					node.Value.(map[string]interface{})[node.Key] = newDataArray
-					return nil
-				}
-			}
-		}
-		node.Value.(map[string]interface{})[node.Key] = newData
-		treeChangeFlag = true
-	default:
-		pageError(g, "unsupported type: "+fmt.Sprintf("%T", value))
-		return errors.New("unsupported type")
+	buf := view.Buffer()
+	err,inTreeChange := KV_tree.UpdateNode(node , buf)
+	if err != nil{
+		pageError(g , err.Error())
+		return err
 	}
-	if treeChangeFlag {
-		KV_tree.UpdateNodeWithChild(node)
+	
+	if inTreeChange {
 		v, _ := g.View(fileTreeView)
 		v.Clear()
-		
 		updateTtreeIndexIsExpandBuf()
 		buildDisNodeList(KV_tree.NodeList)
 		printKVTree(v, KV_tree.NodeList, "", true)
