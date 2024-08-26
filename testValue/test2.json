@@ -1,1 +1,48 @@
-{"age":138,"hobby":"reading","name":"a"}
+{
+    "level1": {
+      "level2": {
+        "level3": {
+          "level4": {
+            "level5": {
+              "level6": {
+                "level7": {
+                  "level8": {
+                    "level9": {
+                      "level10": {
+                        "level11": {
+                          "level12": {
+                            "level13": {
+                              "level14": {
+                                "level15": {
+                                  "level16": {
+                                    "level17": {
+                                      "level18": {
+                                        "level19": {
+                                          "level20": {
+                                            "data": "This is the 20th level of nesting."
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "author": "Author Name",
+      "version": "1.0.0",
+      "description": "This is a complex JSON structure with 20 levels of nesting."
+    }
+  }

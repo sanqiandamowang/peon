@@ -269,7 +269,7 @@ func disfileTreeView(g *gocui.Gui) error {
 		v.SelBgColor = gocui.ColorGreen
 		v.SelFgColor = gocui.ColorBlack
 		v.Title = "file tree"
-		v.Wrap = true
+		v.Wrap = false
 		treeIndexMax = 0
 		treeIndex = 0
 		buildDisNodeList(KV_tree.NodeList)
@@ -286,7 +286,7 @@ func disfileTreeView(g *gocui.Gui) error {
 		v.SelFgColor = gocui.ColorBlack
 		v.Editable = true
 		v.Title = "file edit"
-		v.Wrap = true
+		v.Wrap = false
 		updatefileEditView(g)
 	}
 	return nil
