@@ -94,7 +94,7 @@ func cursorDown(g *gocui.Gui, v *gocui.View) error {
 			lx := len(line) - 3
 			maxX, _ := v.Size()
 			if lx > maxX {
-				ox = lx - maxX
+				ox = lx - maxX+1
 			}
 
 			if err := v.SetOrigin(ox, oy+1); err != nil {
@@ -114,7 +114,7 @@ func cursorUp(g *gocui.Gui, v *gocui.View) error {
 			lx := len(line) - 3
 			maxX, _ := v.Size()
 			if lx > maxX {
-				ox = lx - maxX
+				ox = lx - maxX+1
 			}
 
 			if err := v.SetOrigin(ox, oy-1); err != nil {
