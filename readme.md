@@ -94,12 +94,9 @@ $ source _peo'n_completion_completion
 目前只支持 Edit JSON 功能  
 
 方向键上下键选择 
-
 回车进入下一级
-
 方向键左键返回上一级
 `file tree`界面回车进入 `file edit`界面，
-
 `file edit`界面 ctrl+s 返回`file tree`界面
-
 `file tree`界面 ctrl+s 保存文件 
+`file tree`界面 空格 展开/并拢 
