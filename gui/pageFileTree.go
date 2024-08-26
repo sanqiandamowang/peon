@@ -18,12 +18,12 @@ const (
 	TreeSignUpEnding = "└"
 )
 
-var KV_tree kvtree.KV_Tree_V2
+var KV_tree kvtree.KV_Tree
 var treeIndex int = 0
 var treeIndexMax int = 0
 var treeIndexIsExpandBuf *bool
 // var treeExPandList []bool
-var disNodeList []*kvtree.KV_Node_V2
+var disNodeList []*kvtree.KV_Node
 func updateTtreeIndexIsExpandBuf(){
 	if treeIndexIsExpandBuf==nil{
 		treeIndexIsExpandBuf = new(bool)
@@ -101,7 +101,7 @@ func updatefileTree(_ *gocui.Gui, v *gocui.View) error {
 	}
 	return err
 }
-func buildDisNodeList(node *kvtree.KV_Node_V2) {
+func buildDisNodeList(node *kvtree.KV_Node) {
 
 	disNodeList = append(disNodeList, node)
 	if treeIndex == len(disNodeList)-1 &&  treeIndexIsExpandBuf!=nil {
@@ -116,7 +116,7 @@ func buildDisNodeList(node *kvtree.KV_Node_V2) {
 		buildDisNodeList(node.Next)
 	}
 }
-func printKVTree(v *gocui.View, node *kvtree.KV_Node_V2, indent string, isLast bool) {
+func printKVTree(v *gocui.View, node *kvtree.KV_Node, indent string, isLast bool) {
 	if node == nil {
 		return
 	}
@@ -152,7 +152,7 @@ func printKVTree(v *gocui.View, node *kvtree.KV_Node_V2, indent string, isLast b
 }
 
 func updatefileEditView(g *gocui.Gui) error {
-	var node *kvtree.KV_Node_V2 = disNodeList[treeIndex]
+	var node *kvtree.KV_Node = disNodeList[treeIndex]
 	var disValue interface{}
 	v, err := g.View(fileEditView)
 	if err != nil {

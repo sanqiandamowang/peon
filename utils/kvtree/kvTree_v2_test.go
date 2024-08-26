@@ -5,14 +5,14 @@ import (
 	"testing"
 )
 
-func TestLoad_v2(t *testing.T) {
+func TestLoad(t *testing.T) {
 	var source map[string]interface{}
 	err := jsonutils.Read("/home/sanqian/peon/peon/testValue/test.json", &source)
 	if err != nil {
 		t.Errorf("Read() error = %v", err)
 		return
 	}
-	tree:= &KV_Tree_V2{}
+	tree:= &KV_Tree{}
 	tree.Source = &source
 	tree.NodeList = tree.SourceToKVNode(source, "root", nil)
 	tree.NodeList.Value.(map[string]interface{})["step1"].(map[string]interface{})["step2"] =2

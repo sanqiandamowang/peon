@@ -10,21 +10,26 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/spf13/cast"
 )
-
-type KV_Node_V2 struct {
+const (
+	TreeSignDash     = "─"
+	TreeSignVertical = "│"
+	TreeSignUpMiddle = "├"
+	TreeSignUpEnding = "└"
+)
+type KV_Node struct {
 	Key      string
 	Value    interface{}
 	IsExpand bool
-	Parent   *KV_Node_V2
-	Next     *KV_Node_V2
-	Child    *KV_Node_V2
+	Parent   *KV_Node
+	Next     *KV_Node
+	Child    *KV_Node
 	No       int
 }
-type KV_Tree_V2 struct {
+type KV_Tree struct {
 	FileName string
 	Source   interface{}
-	NodeList *KV_Node_V2
-	// DisNodeList []*KV_Node_V2
+	NodeList *KV_Node
+	// DisNodeList []*KV_Node
 }
 
 // 枚举
@@ -36,7 +41,7 @@ const (
 )
 
 // 0 root 1 map 2 []interface{}
-func (tree *KV_Tree_V2) getPraentValueType(node *KV_Node_V2) int {
+func (tree *KV_Tree) getPraentValueType(node *KV_Node) int {
 
 	if node.Parent == nil {
 		if node.Key == "root" {
@@ -54,7 +59,7 @@ func (tree *KV_Tree_V2) getPraentValueType(node *KV_Node_V2) int {
 		return TYPE_ERR
 	}
 }
-func (tree *KV_Tree_V2) updateNodeWithChild(node *KV_Node_V2) *KV_Node_V2 {
+func (tree *KV_Tree) updateNodeWithChild(node *KV_Node) *KV_Node {
 	parent := node.Parent
 	if parent == nil {
 		//root
@@ -62,8 +67,8 @@ func (tree *KV_Tree_V2) updateNodeWithChild(node *KV_Node_V2) *KV_Node_V2 {
 		tree.NodeList = tree.SourceToKVNode(tree.Source, "root", nil)
 		return nil
 	}
-	var newNode *KV_Node_V2
-	// var lastNode *KV_Node_V2
+	var newNode *KV_Node
+	// var lastNode *KV_Node
 	switch parent.Value.(type) {
 	case map[string]interface{}:
 		newNode = tree.SourceToKVNode(parent.Value.(map[string]interface{})[node.Key], node.Key, parent)
@@ -90,7 +95,7 @@ func (tree *KV_Tree_V2) updateNodeWithChild(node *KV_Node_V2) *KV_Node_V2 {
 	}
 	return newNode
 }
-func (tree *KV_Tree_V2) getNodeValue(node *KV_Node_V2) interface{} {
+func (tree *KV_Tree) getNodeValue(node *KV_Node) interface{} {
 	var sourceValue interface{}
 	switch node.Value.(type) {
 	case map[string]interface{}:
@@ -114,7 +119,7 @@ func (tree *KV_Tree_V2) getNodeValue(node *KV_Node_V2) interface{} {
 	}
 	return sourceValue
 }
-func (tree *KV_Tree_V2) UpdateNode(node *KV_Node_V2, updateBuf string) (err error,isTrerChange bool) {
+func (tree *KV_Tree) UpdateNode(node *KV_Node, updateBuf string) (err error,isTrerChange bool) {
 	sourceValue:= tree.getNodeValue(node)
 	buf := strings.ReplaceAll(updateBuf, " ", "")
 	buf = strings.ReplaceAll(buf, "\r", "")
@@ -203,17 +208,17 @@ func (tree *KV_Tree_V2) UpdateNode(node *KV_Node_V2, updateBuf string) (err erro
 	}
 	return nil,treeChangeFlag
 }
-func (tree *KV_Tree_V2) SourceToKVNode(data interface{}, key string, parent *KV_Node_V2) *KV_Node_V2 {
-	var node *KV_Node_V2
+func (tree *KV_Tree) SourceToKVNode(data interface{}, key string, parent *KV_Node) *KV_Node {
+	var node *KV_Node
 	switch dataType := data.(type) {
 	case map[string]interface{}:
-		node = &KV_Node_V2{
+		node = &KV_Node{
 			Key:      key,
 			Value:    data,
 			IsExpand: key == "root",
 			Parent:   parent,
 		}
-		var lastNode *KV_Node_V2
+		var lastNode *KV_Node
 		keys := make([]string, 0, len(node.Value.(map[string]interface{})))
 		for k := range dataType {
 			keys = append(keys, k)
@@ -229,13 +234,13 @@ func (tree *KV_Tree_V2) SourceToKVNode(data interface{}, key string, parent *KV_
 			lastNode = newNode
 		}
 	case []interface{}:
-		node = &KV_Node_V2{
+		node = &KV_Node{
 			Key:      key,
 			Value:    data,
 			IsExpand: key == "root",
 			Parent:   parent,
 		}
-		var lastNode *KV_Node_V2
+		var lastNode *KV_Node
 		for i := range dataType {
 			newNode := tree.SourceToKVNode(node.Value.([]interface{})[i], fmt.Sprintf("[%d]", i), node)
 			newNode.No = i
@@ -248,7 +253,7 @@ func (tree *KV_Tree_V2) SourceToKVNode(data interface{}, key string, parent *KV_
 		}
 	default:
 		if parent != nil {
-			node = &KV_Node_V2{
+			node = &KV_Node{
 				Key:      key,
 				Value:    parent.Value,
 				IsExpand: key == "root",
@@ -258,7 +263,7 @@ func (tree *KV_Tree_V2) SourceToKVNode(data interface{}, key string, parent *KV_
 	}
 	return node
 }
-func (tree *KV_Tree_V2) printKVNode(node *KV_Node_V2, indent string, isLast bool) {
+func (tree *KV_Tree) printKVNode(node *KV_Node, indent string, isLast bool) {
 	if node == nil {
 		return
 	}
@@ -285,7 +290,7 @@ func (tree *KV_Tree_V2) printKVNode(node *KV_Node_V2, indent string, isLast bool
 		}
 
 	}
-	// var DisNodeList []*KV_Node_V2
+	// var DisNodeList []*KV_Node
 	// DisNodeList = append(DisNodeList, node)
 	newIndent := indent
 	if !isLast {
@@ -302,14 +307,14 @@ func (tree *KV_Tree_V2) printKVNode(node *KV_Node_V2, indent string, isLast bool
 		tree.printKVNode(node.Next, indent, node.Next.Next == nil)
 	}
 }
-func (tree *KV_Tree_V2) Load(fileName string, source map[string]interface{}) error {
+func (tree *KV_Tree) Load(fileName string, source map[string]interface{}) error {
 	tree.FileName = fileName
 	tree.Source = &source
 	tree.NodeList = tree.SourceToKVNode(source, "root", nil)
-	// tree.DisNodeList = make([]*KV_Node_V2, 0)
+	// tree.DisNodeList = make([]*KV_Node, 0)
 	return nil
 }
-func (tree *KV_Tree_V2) Save() error {
+func (tree *KV_Tree) Save() error {
 	err := jsonutils.Write(tree.FileName, tree.NodeList.Value)
 	return err
 }
